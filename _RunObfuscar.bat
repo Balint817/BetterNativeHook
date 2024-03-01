@@ -1,0 +1,1 @@
+"C:\Users\pecsi\.nuget\packages\obfuscar\2.2.38\tools\Obfuscar.Console.exe" obfuscar.xml
