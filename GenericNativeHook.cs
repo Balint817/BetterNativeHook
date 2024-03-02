@@ -52,19 +52,18 @@ namespace BetterNativeHook
                 .ToList()
                 .AsReadOnly();
         }
-        public static unsafe object HandleCallback(int fakeAssemblyIndex, IntPtr[] args)
+        public static unsafe object HandleCallback(IntPtr trampolineReturnValue, int fakeAssemblyIndex, IntPtr[] args)
         {
             var fakeAssembly = FakeAssembly.GetAssemblyByIndex(fakeAssemblyIndex);
-            var returnValue = fakeAssembly.InvokeTrampoline(args);
             if (!MethodDataToInstance.TryGetValue(fakeAssembly.BoundMethodData, out var hook))
             {
-                return returnValue;
+                return trampolineReturnValue;
             }
-            InitParams(returnValue, args, fakeAssembly, out var modifiedReturnValue, out var parameters);
+            InitParams(trampolineReturnValue, args, fakeAssembly, out var modifiedReturnValue, out var parameters);
 
             foreach (var hookInfo in hook.HookInfos)
             {
-                hookInfo.InvokeCallback(returnValue, modifiedReturnValue, parameters);
+                hookInfo.InvokeCallback((IntPtr)trampolineReturnValue, modifiedReturnValue, parameters);
             }
             return modifiedReturnValue.Value;
         }
