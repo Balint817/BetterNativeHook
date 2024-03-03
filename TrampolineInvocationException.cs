@@ -10,7 +10,7 @@ namespace BetterNativeHook
     [PatchShield]
     internal sealed class TrampolineInvocationException : Exception
     {
-        static string GetMessage(int fakeAssemblyIndex) => $"An exception was raised in the managed invocation of the trampoline for {FakeAssembly.GetAssemblyByIndex(fakeAssemblyIndex)?.BoundMethodData?.GetFullName() ?? "<null> (this is probably the issue)"}";
+        static string GetMessage(int fakeAssemblyIndex) => $"An exception was raised in the trampoline for {FakeAssembly.GetAssemblyByIndex(fakeAssemblyIndex)?.BoundMethodData?.GetFullName() ?? "<null> (this is probably the issue)"}";
         public TrampolineInvocationException(Exception innerException, int fakeAssemblyIndex) : base(GetMessage(fakeAssemblyIndex), innerException)
         {
         }

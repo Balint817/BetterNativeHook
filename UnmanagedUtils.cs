@@ -1,12 +1,6 @@
 ﻿using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.InteropTypes;
 using MelonLoader;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BetterNativeHook
 {

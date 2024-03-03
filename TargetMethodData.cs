@@ -1,10 +1,9 @@
-﻿using MelonLoader;
+﻿using Il2CppInterop.Common;
+using MelonLoader;
+using MelonLoader.NativeUtils;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Security;
-using Il2CppInterop.Common;
-using Il2CppAssets.Scripts.GameCore;
-using MelonLoader.NativeUtils;
 
 namespace BetterNativeHook
 {

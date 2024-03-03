@@ -334,7 +334,7 @@ namespace BetterNativeHook
             /// and calls <see cref="MelonLogger.Error(object)"/>
             ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(MelonLogger), nameof(MelonLogger.Error), new Type[] { typeof(object) }));
 
-            ilgenerator1.EmitWriteLine("The program will exit to prevent further issues and/or corruption");
+            ilgenerator1.EmitWriteLine("The program will now exit to prevent further issues and/or corruption");
 
             // pushes an int value (wait time) onto the stack
             ilgenerator1.Emit(OpCodes.Ldc_I4, 5000);
