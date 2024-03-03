@@ -14,8 +14,9 @@ namespace BetterNativeHook
 
         /// <summary>
         /// The name of the parameter. Null if the ParameterInfo points to the modifed return value (see ParameterIndex)
+        /// <para>May also be null if the method was generated, and the names weren't specified</para>
         /// </summary>
-        public string Name { get; }
+        public string? Name { get; }
         /// <summary>
         /// The index of the parameter. -1 if the ParameterInfo points to the modified return value
         /// </summary>
@@ -24,7 +25,7 @@ namespace BetterNativeHook
         /// The type of the parameter (from it's MethodInfo)
         /// </summary>
         public Type ReflectedType { get; }
-        internal ParameterInfo(int parameterIndex, string parameterName, Type reflectedType, IntPtr originalPointer = default)
+        internal ParameterInfo(int parameterIndex, string? parameterName, Type reflectedType, IntPtr originalPointer = default)
         {
             Index = parameterIndex;
             Name = parameterName;
@@ -32,13 +33,13 @@ namespace BetterNativeHook
             Value = originalPointer;
         }
         /// <summary>
-        /// Set to override the the parameter's pointer. Modifications are applied once control is lost.
+        /// Set to override the the parameter's pointer. Modifications are applied once the event loses control.
         /// <para></para>
         /// Leave on the default value of <c>null</c> to not modify.
         /// </summary>
         public IntPtr? Override { get; set; }
 
-        protected internal void SetOverrides()
+        internal void SetOverrides()
         {
             if (Override is null)
             {
@@ -46,6 +47,10 @@ namespace BetterNativeHook
             }
             Value = Override.Value;
             Override = null;
+        }
+        public override string ToString()
+        {
+            return $"{ReflectedType.Name??"<type>"} {Name??"<null>"} = {Value.ToInt64()}" + (Override is null ? "" : $"->{Override.Value.ToInt64()}");
         }
     }
 }

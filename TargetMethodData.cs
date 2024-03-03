@@ -3,6 +3,8 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Security;
 using Il2CppInterop.Common;
+using Il2CppAssets.Scripts.GameCore;
+using MelonLoader.NativeUtils;
 
 namespace BetterNativeHook
 {
@@ -10,14 +12,45 @@ namespace BetterNativeHook
     [PatchShield]
     public class TargetMethodData
     {
+        /// <summary>
+        /// Gets the formatted name of the method represented by this instance.
+        /// </summary>
+        /// <returns>The method's info formatted as: Name&lt;T1, ..., Tn&gt;(type1, ..., typeN)</returns>
+        public string GetFullName() => $"{Name}{(GenericTypes.Length == 0 ? "" : $"<{string.Join(", ", GenericTypes.Select(x => x.Name))}>")}({string.Join(", ", Parameters.Select(x => x.ParameterType.Name))})";
+        /// <summary>
+        /// Gets the return type of the method represented by this instance.
+        /// </summary>
         public Type ReturnType => Method.ReturnType;
+        /// <summary>
+        /// Gets the type that declares the method represented by this instance.
+        /// </summary>
         public Type TargetType => Method.ReflectedType ?? Method.DeclaringType!;
+        /// <summary>
+        /// Gets the type that declares the method represented by this instance.
+        /// </summary>
         public string Name => Method.Name;
+        /// <summary>
+        /// Gets the parameters of the method represented by this instance.
+        /// </summary>
         public System.Reflection.ParameterInfo[] Parameters => Method.GetParameters();
+        /// <summary>
+        /// Gets the generic arguments of the method represented by this instance.
+        /// </summary>
         public Type[] GenericTypes => Method.GetGenericArguments();
+        /// <summary>
+        /// The <see cref="MethodInfo"/> that this instance represents.
+        /// </summary>
         public MethodInfo Method { get; }
+        /// <summary>
+        /// A pointer that <see cref="NativeHook{T}"/> can hook into.
+        /// </summary>
         internal IntPtr HookableMethodPointer { get; }
+        /// <summary>
+        /// Directly resulting pointer from IL2CPP.
+        /// </summary>
         internal IntPtr NativeMethodPointer { get; }
+
+        /// Won't be null once control falls back to the caller of <see cref="GetInstance(MethodInfo)"/>
         internal FakeAssembly FakeAssembly { get; }
         public override bool Equals(object? obj)
         {
@@ -66,10 +99,17 @@ namespace BetterNativeHook
         }
 
         private static HashSet<TargetMethodData> _instances = new();
+        /// <summary>
+        /// Returns a new instance with the given <see cref="MethodInfo"/>.
+        /// <para></para>
+        /// If an instance with the given <see cref="MethodInfo"/> already exists, it is returned instead.
+        /// </summary>
+        /// <param name="targetMethod"></param>
+        /// <returns>A <see cref="TargetMethodData"/> instance</returns>
         internal static TargetMethodData GetInstance(MethodInfo targetMethod)
         {
             var newMethodData = new TargetMethodData(targetMethod);
-            if (_instances.FirstOrDefault(newMethodData) is TargetMethodData existingData)
+            if (_instances.TryGetValue(newMethodData, out TargetMethodData? existingData))
             {
                 return existingData;
             }
@@ -117,7 +157,6 @@ namespace BetterNativeHook
             NativeMethodPointer = nativeMethodPtr;
             HookableMethodPointer = *(IntPtr*)nativeMethodPtr;
             FakeAssembly = FakeAssembly.GetInstance(this);
-
         }
     }
 }
