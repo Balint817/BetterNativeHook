@@ -75,18 +75,18 @@ namespace BetterNativeHook
             }
             var boundMethod = fakeAssembly.BoundMethodData;
             var methodParams = boundMethod.Parameters;
-            var modifiedReturnValue = new ParameterInfo(-1, null!, boundMethod.ReturnType, trampolineReturnValue);
+            var modifiedReturnValue = new ParameterReference(-1, null!, boundMethod.ReturnType, trampolineReturnValue);
 
             var parameters = methodParams
-                .Select((x) => new ParameterInfo(x.Position + 1, x.Name, x.ParameterType, args[x.Position + 1]))
-                .Prepend(new ParameterInfo(0, FakeAssembly.instanceParamName, boundMethod.TargetType, args[0]))
-                .Append(new ParameterInfo(methodParams.Length + 1, FakeAssembly.nativeMethodPtrName, typeof(MethodInfo), args[methodParams.Length + 1]))
+                .Select((x) => new ParameterReference(x.Position + 1, x.Name, x.ParameterType, args[x.Position + 1]))
+                .Prepend(new ParameterReference(0, FakeAssembly.instanceParamName, boundMethod.TargetType, args[0]))
+                .Append(new ParameterReference(methodParams.Length + 1, FakeAssembly.nativeMethodPtrName, typeof(MethodInfo), args[methodParams.Length + 1]))
                 .ToList()
                 .AsReadOnly();
 
             foreach (var hookInfo in hook.HookInfos)
             {
-                hookInfo.InvokeCallback((IntPtr)trampolineReturnValue, modifiedReturnValue, parameters);
+                hookInfo.InvokeCallback(trampolineReturnValue, modifiedReturnValue, parameters);
             }
             return modifiedReturnValue.Value;
         }

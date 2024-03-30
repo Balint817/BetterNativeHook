@@ -5,7 +5,7 @@ namespace BetterNativeHook
 {
     [SecurityCritical]
     [PatchShield]
-    public sealed record class ParameterInfo
+    public sealed record class ParameterReference
     {
         /// <summary>
         /// The underlying pointer of the parameter
@@ -25,7 +25,7 @@ namespace BetterNativeHook
         /// The type of the parameter (from it's MethodInfo)
         /// </summary>
         public Type ReflectedType { get; }
-        internal ParameterInfo(int parameterIndex, string? parameterName, Type reflectedType, IntPtr originalPointer = default)
+        internal ParameterReference(int parameterIndex, string? parameterName, Type reflectedType, IntPtr originalPointer = default)
         {
             Index = parameterIndex;
             Name = parameterName;
@@ -41,7 +41,7 @@ namespace BetterNativeHook
 
         internal void SetOverrides()
         {
-            if (Override is null)
+            if (!Override.HasValue)
             {
                 return;
             }

@@ -9,14 +9,14 @@ namespace BetterNativeHook
     /// <param name="modifiedReturnValue">The return value modified by prior methods in the invocation list</param>
     /// <param name="parameters">The parameters of the method. Can be overridden and sent to the next method in the invocation list</param>
     [SecurityCritical]
-    public delegate void HookDelegate(IntPtr originalReturnValue, ParameterInfo modifiedReturnValue, ReadOnlyCollection<ParameterInfo> parameters);
+    public delegate void HookDelegate(IntPtr originalReturnValue, ParameterReference modifiedReturnValue, ReadOnlyCollection<ParameterReference> parameters);
 
     [SecurityCritical]
     [PatchShield]
     public sealed class MelonHookInfo: IComparable<MelonHookInfo>
     {
         event HookDelegate? HookCallback;
-        internal void InvokeCallback(IntPtr originalReturnValue, ParameterInfo modifiedReturnValue, ReadOnlyCollection<ParameterInfo> parameters)
+        internal void InvokeCallback(IntPtr originalReturnValue, ParameterReference modifiedReturnValue, ReadOnlyCollection<ParameterReference> parameters)
         {
             if (HookCallback is null)
             {
