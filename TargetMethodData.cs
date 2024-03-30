@@ -91,10 +91,16 @@ namespace BetterNativeHook
         }
         public override int GetHashCode()
         {
-            return TargetType.GetHashCode()
-                + GenericTypes.Select(x => x.GetHashCode()).Aggregate((a, b) => unchecked(a + b))
-                + Parameters.Select(x => x.ParameterType.GetHashCode()).Aggregate((a, b) => unchecked(a + b))
-                + Name.GetHashCode();
+            var result = TargetType.GetHashCode() + Name.GetHashCode();
+            if (GenericTypes.Length != 0)
+            {
+                result += GenericTypes.Select(x => x.GetHashCode()).Aggregate((a, b) => unchecked(a + b));
+            }
+            if (Parameters.Length != 0)
+            {
+                result += Parameters.Select(x => x.ParameterType.GetHashCode()).Aggregate((a, b) => unchecked(a + b));
+            }
+            return result;
         }
 
         private static HashSet<TargetMethodData> _instances = new();
