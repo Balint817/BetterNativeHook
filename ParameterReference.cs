@@ -1,56 +1,148 @@
 ﻿using MelonLoader;
+using System.Collections.ObjectModel;
 using System.Security;
 
 namespace BetterNativeHook
 {
     [SecurityCritical]
     [PatchShield]
-    public sealed record class ParameterReference
+    public sealed record class ReturnValueReference
     {
-        /// <summary>
-        /// The underlying pointer of the parameter
-        /// </summary>
-        public IntPtr Value { get; private set; }
+        FakeAssembly _assembly;
+        ReadOnlyCollection<ParameterReference> _parameters;
 
-        /// <summary>
-        /// The name of the parameter. Null if the ParameterInfo points to the modifed return value (see ParameterIndex)
-        /// <para>May also be null if the method was generated, and the names weren't specified</para>
-        /// </summary>
-        public string? Name { get; }
-        /// <summary>
-        /// The index of the parameter. -1 if the ParameterInfo points to the modified return value
-        /// </summary>
-        public int Index { get; }
-        /// <summary>
-        /// The type of the parameter (from it's MethodInfo)
-        /// </summary>
-        public Type ReflectedType { get; }
-        internal ParameterReference(int parameterIndex, string? parameterName, Type reflectedType, IntPtr originalPointer = default)
+        /// <returns>
+        /// <br/>
+        /// - <see cref="OriginalValue"/>, if not <see langword="null"/>
+        /// <br/>
+        /// - Invokes the trampoline, sets <see cref="OriginalValue"/> to the result, and returns it
+        /// </returns>
+        public IntPtr InvokeTrampoline()
         {
-            Index = parameterIndex;
-            Name = parameterName;
-            ReflectedType = reflectedType;
-            Value = originalPointer;
+            if (OriginalValue is { } ptr)
+            {
+                return ptr;
+            }
+            OriginalValue = ptr = _assembly.InvokeTrampoline(_parameters);
+            CurrentValue ??= OriginalValue;
+            return ptr;
         }
         /// <summary>
-        /// Set to override the the parameter's pointer. Modifications are applied once the event loses control.
+        /// The original pointer of the return value.
+        /// This will be <see langword="null"/> until the trampoline is called.
+        /// </summary>
+        public IntPtr? OriginalValue { get; private set; }
+        /// <summary>
+        /// The modified pointer of the return value.
+        /// This will be <see langword="null"/> until the trampoline is called, or an <see cref="Override"/> is specified.
+        /// </summary>
+        public IntPtr? CurrentValue { get; private set; }
+        /// <summary>
+        /// The type of the return value (from it's MethodInfo)
+        /// </summary>
+        public readonly Type ReflectedType;
+        internal ReturnValueReference(Type reflectedType, FakeAssembly assembly, ReadOnlyCollection<ParameterReference> parameters)
+        {
+            ReflectedType = reflectedType;
+            _assembly = assembly;
+            _parameters = parameters;
+        }
+        /// <summary>
+        /// Set to override the pointer. Modifications are applied once the event loses control.
         /// <para></para>
         /// Leave on the default value of <c>null</c> to not modify.
         /// </summary>
         public IntPtr? Override { get; set; }
-
         internal void SetOverrides()
         {
             if (!Override.HasValue)
             {
                 return;
             }
-            Value = Override.Value;
+            CurrentValue = Override.Value;
             Override = null;
         }
         public override string ToString()
         {
-            return $"{ReflectedType.Name??"<type>"} {Name??"<null>"} = {Value.ToInt64()}" + (Override is null ? "" : $"->{Override.Value.ToInt64()}");
+            return $"{ReflectedType.Name ?? "<type>"} = {(!OriginalValue.HasValue ? "<NA>" : OriginalValue.Value.ToInt64())}" + (!Override.HasValue ? (!CurrentValue.HasValue ? "" : CurrentValue.Value.ToInt64()) : $"->{Override.Value.ToInt64()}");
+        }
+        /// <returns>
+        /// <br/>
+        /// - <see cref="Override"/>, if not <see langword="null"/>
+        /// <br/>
+        /// - <see cref="CurrentValue"/>, if not <see langword="null"/>
+        /// <br/>
+        /// - <see cref="InvokeTrampoline()"/>
+        /// </returns>
+        public IntPtr GetValueOrInvokeTrampoline()
+        {
+            if (Override is { } v1)
+            {
+                return v1;
+            }
+            if (CurrentValue is { } v2)
+            {
+                return v2;
+            }
+            return InvokeTrampoline();
+        }
+        /// <returns>
+        /// <br/>
+        /// - <see cref="Override"/>, if not <see langword="null"/>
+        /// <br/>
+        /// - <see cref="CurrentValue"/>, if not <see langword="null"/>
+        /// <br/>
+        /// - <see cref="OriginalValue"/>, even if it is <see langword="null"/>
+        /// </returns>
+        public IntPtr? GetValueWithoutInvoke()
+        {
+            if (Override is { } v1)
+            {
+                return v1;
+            }
+            if (CurrentValue is { } v2)
+            {
+                return v2;
+            }
+            return OriginalValue;
+        }
+    }
+    [SecurityCritical]
+    [PatchShield]
+    public sealed record class ParameterReference
+    {
+        /// <summary>
+        /// The original pointer of the parameter
+        /// </summary>
+        public readonly IntPtr OriginalValue;
+        /// <summary>
+        /// The modified pointer of the parameter
+        /// </summary>
+        public IntPtr CurrentValue;
+
+        /// <summary>
+        /// The name of the parameter.
+        /// <para>May be null if the method was generated and the names weren't specified</para>
+        /// </summary>
+        public readonly string? Name;
+        /// <summary>
+        /// The index of the parameter.
+        /// </summary>
+        public readonly int Index;
+        /// <summary>
+        /// The type of the parameter (from it's MethodInfo)
+        /// </summary>
+        public readonly Type ReflectedType;
+        internal ParameterReference(int parameterIndex, string? parameterName, Type reflectedType, IntPtr initialValue = default)
+        {
+            Index = parameterIndex;
+            Name = parameterName;
+            ReflectedType = reflectedType;
+            CurrentValue = OriginalValue = initialValue;
+        }
+        public override string ToString()
+        {
+            return $"{ReflectedType.Name??"<type>"} {Name??"<null>"} = {OriginalValue.ToInt64()}" + (CurrentValue != OriginalValue ? "" : $"->{CurrentValue.ToInt64()}");
         }
     }
 }

@@ -66,16 +66,15 @@ namespace BetterNativeHook
         /// <param name="fakeAssemblyIndex">The index of the FakeAssembly that generated the unmanaged caller</param>
         /// <param name="args">The arguments of the unmanaged function packed into an array</param>
         /// <returns>The pointer modified by the subscribed <see cref="MelonHookInfo"/> instances, or the original if left untouched</returns>
-        public static IntPtr HandleCallback(IntPtr trampolineReturnValue, int fakeAssemblyIndex, IntPtr[] args)
+        public static IntPtr HandleCallback(int fakeAssemblyIndex, IntPtr[] args)
         {
             var fakeAssembly = FakeAssembly.GetAssemblyByIndex(fakeAssemblyIndex);
             if (!MethodDataToInstance.TryGetValue(fakeAssembly.BoundMethodData, out var hook))
             {
-                return trampolineReturnValue;
+                return fakeAssembly.InvokeTrampolineDirect(args);
             }
             var boundMethod = fakeAssembly.BoundMethodData;
             var methodParams = boundMethod.Parameters;
-            var modifiedReturnValue = new ParameterReference(-1, null!, boundMethod.ReturnType, trampolineReturnValue);
 
             var parameters = methodParams
                 .Select((x) => new ParameterReference(x.Position + 1, x.Name, x.ParameterType, args[x.Position + 1]))
@@ -84,11 +83,13 @@ namespace BetterNativeHook
                 .ToList()
                 .AsReadOnly();
 
+            var returnValue = new ReturnValueReference(boundMethod.ReturnType, fakeAssembly, parameters);
+
             foreach (var hookInfo in hook.HookInfos)
             {
-                hookInfo.InvokeCallback(trampolineReturnValue, modifiedReturnValue, parameters);
+                hookInfo.InvokeCallback(returnValue, parameters);
             }
-            return modifiedReturnValue.Value;
+            return returnValue.GetValueOrInvokeTrampoline();
         }
         /// <summary>
         /// Attaches the <see cref="NativeHook{T}"/> represented by this instance.

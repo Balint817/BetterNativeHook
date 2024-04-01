@@ -5,18 +5,18 @@ using System.Security;
 
 namespace BetterNativeHook
 {
-    /// <param name="originalReturnValue">The pointer initially returned by the trampoline</param>
+    /// <param name="returnValue">The pointer initially returned by the trampoline</param>
     /// <param name="modifiedReturnValue">The return value modified by prior methods in the invocation list</param>
     /// <param name="parameters">The parameters of the method. Can be overridden and sent to the next method in the invocation list</param>
     [SecurityCritical]
-    public delegate void HookDelegate(IntPtr originalReturnValue, ParameterReference modifiedReturnValue, ReadOnlyCollection<ParameterReference> parameters);
+    public delegate void HookDelegate(ReturnValueReference returnValue, ReadOnlyCollection<ParameterReference> parameters);
 
     [SecurityCritical]
     [PatchShield]
     public sealed class MelonHookInfo: IComparable<MelonHookInfo>
     {
         event HookDelegate? HookCallback;
-        internal void InvokeCallback(IntPtr originalReturnValue, ParameterReference modifiedReturnValue, ReadOnlyCollection<ParameterReference> parameters)
+        internal void InvokeCallback(ReturnValueReference returnValue, ReadOnlyCollection<ParameterReference> parameters)
         {
             if (HookCallback is null)
             {
@@ -26,18 +26,20 @@ namespace BetterNativeHook
             {
                 try
                 {
-                    del.Invoke(originalReturnValue, modifiedReturnValue, parameters);
-                    modifiedReturnValue.SetOverrides();
-                    foreach (var parameter in parameters)
+                    if (del is null)
                     {
-                        parameter.SetOverrides();
+                        continue;                        
                     }
+                    del.Invoke(returnValue, parameters);
+                    returnValue.SetOverrides();
                 }
                 catch (Exception ex)
                 {
                     MelonLogger.Error(ex.ToString());
                     if (ex is CriticalPatchException)
                     {
+                        MelonLogger.Error("The program will now exit to prevent further issues or corruption.");
+                        Thread.Sleep(5000);
                         Environment.FailFast(null);
                     }
                 }

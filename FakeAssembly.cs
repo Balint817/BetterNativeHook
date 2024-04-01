@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using MelonLoader;
 using MelonLoader.NativeUtils;
+using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -20,6 +21,21 @@ namespace BetterNativeHook
     [PatchShield]
     public sealed class FakeAssembly
     {
+        private delegate IntPtr TrampolineInvoker(IntPtr[] args);
+        internal IntPtr InvokeTrampoline(ReadOnlyCollection<ParameterReference> args)
+        {
+            return _trampolineInvoker!(args.Select(x => x.CurrentValue).ToArray());
+        }
+        internal IntPtr InvokeTrampolineDirect(IntPtr[] args)
+        {
+            return _trampolineInvoker!(args);
+        }
+
+        internal static IntPtr InvokeTrampoline(int assemblyIdx, ReadOnlyCollection<ParameterReference> args)
+        {
+            return _instances[assemblyIdx].InvokeTrampoline(args);
+        }
+        TrampolineInvoker? _trampolineInvoker;
         internal object Hook = null!;
         MethodInfo Hook_Method_Attach = null!;
         MethodInfo Hook_Method_Detach = null!;
@@ -127,6 +143,7 @@ namespace BetterNativeHook
         internal const string namespaceName = "GeneratedFakeNamespace";
         internal const string typeName = "FakeType";
         internal const string unmanagedMethodName = "UnmanagedMethod";
+        internal const string trampolineInvokerMethodName = "InvokeTrampoline";
         internal const string trampolineDelegateName = "DynamicTrampolineDelegate";
         internal const string instanceParamName = "instance";
         internal const string nativeMethodPtrName = "nativeMethodInfo";
@@ -232,7 +249,7 @@ namespace BetterNativeHook
             unmanagedMethodBuilder.DefineParameter(0, ParameterAttributes.None, instanceParamName);
             for (idx = 1; idx < arraySize - 1; idx++)
             {
-                unmanagedMethodBuilder.DefineParameter(idx, ParameterAttributes.None, parameters[idx - 1].Name);
+                unmanagedMethodBuilder.DefineParameter(idx, ParameterAttributes.None, parameters[idx - 1].Name + "ptr");
             }
             // set last parameter to "nativeMethodInfo"
             unmanagedMethodBuilder.DefineParameter(arraySize - 1, ParameterAttributes.None, nativeMethodPtrName);
@@ -249,7 +266,6 @@ namespace BetterNativeHook
             var pointerArrayVariable = ilgenerator1.DeclareLocal(typeof(IntPtr[]));
             var result = ilgenerator1.DeclareLocal(typeof(IntPtr));
             var exceptionVariable = ilgenerator1.DeclareLocal(typeof(TrampolineInvocationException));
-
             // start a try-catch block
             ilgenerator1.BeginExceptionBlock();
 
@@ -273,46 +289,13 @@ namespace BetterNativeHook
                 ilgenerator1.Emit(OpCodes.Stelem, typeof(IntPtr));
             }
 
-            for (int i = 0; i < arraySize; i++)
-            {
-                // pushes the array onto the stack
-                ilgenerator1.Emit(OpCodes.Ldloc, pointerArrayVariable);
-                // pushes the index onto the stack
-                ilgenerator1.Emit(OpCodes.Ldc_I4, i);
-                // pushes the argument onto the stack
-                ilgenerator1.Emit(OpCodes.Ldarg, i);
-                // pops off the value, then the index, then the array from the stack,
-                // and the value is inserted into the array at the given index
-                ilgenerator1.Emit(OpCodes.Stelem, typeof(IntPtr));
-            }
-
-            // pushes the fake assembly's index on top of the stack
-            ilgenerator1.Emit(OpCodes.Ldc_I4, assemblyIndex);
-
-            /// pops off the fake assembly's index from the stack,
-            /// calls <see cref="GetTrampolineByIndex(int)"/>,
-            /// and pushes the return value (the trampoline delegate object) on top of the stack
-            ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(FakeAssembly), nameof(GetTrampolineByIndex)));
-
-
-            for (int i = 0; i < arraySize; i++)
-            {
-                // pushes the current argument onto the stack
-                ilgenerator1.Emit(OpCodes.Ldarg, i);
-            }
-
-            // pops off the previously returned value and all the arguments from the stack,
-            // invokes the returned delegate using the generated Invoke method (see above),
-            // and pushes the return value on top of the stack
-            ilgenerator1.Emit(OpCodes.Callvirt, delegateTypeInvokeMethod);
-
 
             // pushes the fake assembly's index on top of the stack again
             ilgenerator1.Emit(OpCodes.Ldc_I4, assemblyIndex);
             // pushes the array on top of the stack
             ilgenerator1.Emit(OpCodes.Ldloc, pointerArrayVariable);
             // pops the index and array from the stack,
-            /// calls <see cref="GenericNativeHook.HandleCallback(IntPtr, int, IntPtr[])"/>,
+            /// calls <see cref="GenericNativeHook.HandleCallback(int, IntPtr[])"/>,
             // and pushes the return value onto the stack
             ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(GenericNativeHook), nameof(GenericNativeHook.HandleCallback)));
             //pops the return value from the stack
@@ -334,7 +317,7 @@ namespace BetterNativeHook
             /// and calls <see cref="MelonLogger.Error(object)"/>
             ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(MelonLogger), nameof(MelonLogger.Error), new Type[] { typeof(object) }));
 
-            ilgenerator1.EmitWriteLine("The program will now exit to prevent further issues and/or corruption");
+            ilgenerator1.EmitWriteLine("The program will now exit to prevent further issues or corruption");
 
             // pushes an int value (wait time) onto the stack
             ilgenerator1.Emit(OpCodes.Ldc_I4, 5000);
@@ -368,6 +351,74 @@ namespace BetterNativeHook
             // pops the result from the stack and returns it to the caller
             ilgenerator1.Emit(OpCodes.Ret);
 
+
+
+            // defines a private static method, with IntPtr return type and an IntPtr[] argument
+            var trampolineInvokeMethodBuilder = typeBuilder.DefineMethod(trampolineInvokerMethodName, MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard, returnType, new Type[] { typeof(IntPtr[]) });
+            trampolineInvokeMethodBuilder.DefineParameter(0, ParameterAttributes.None, "args");
+
+            var ilgenerator2 = trampolineInvokeMethodBuilder.GetILGenerator();
+            var exceptionLabel = ilgenerator2.DefineLabel();
+
+            // pushes the first argument (IntPtr[] args) onto the stack
+            ilgenerator2.Emit(OpCodes.Ldarg, 0);
+            // pops off the array from stack,
+            // and pushes the length of the array on top of the stack
+            ilgenerator2.Emit(OpCodes.Ldlen);
+            ilgenerator2.Emit(OpCodes.Conv_I4);
+            // pushes the expected length onto the stack
+            ilgenerator2.Emit(OpCodes.Ldc_I4, arraySize);
+            // pops off the 2 numbers from the stack, and compares them.
+            // if they are not equal, the branch operation is performed
+            ilgenerator2.Emit(OpCodes.Bne_Un, exceptionLabel);
+
+
+            // pushes the fake assembly's index on top of the stack
+            ilgenerator2.Emit(OpCodes.Ldc_I4, assemblyIndex);
+
+            // pops off the fake assembly's index from the stack,
+            /// calls <see cref="GetTrampolineByIndex(int)"/>,
+            // and pushes the return value (the trampoline delegate object) on top of the stack
+            ilgenerator2.Emit(OpCodes.Call, AccessTools.Method(typeof(FakeAssembly), nameof(GetTrampolineByIndex)));
+
+            for (int i = 0; i < arraySize; i++)
+            {
+                // pushes the array onto the stack
+                ilgenerator2.Emit(OpCodes.Ldarg, 0);
+                // pushes the index onto the stack
+                ilgenerator2.Emit(OpCodes.Ldc_I4, i);
+                // pops off the index and the array from the stack,
+                // and the value at the given index is retrieved from the array
+                ilgenerator2.Emit(OpCodes.Ldelem_I);
+            }
+
+            // pops off the previously returned value and all the arguments from the stack,
+            // invokes the returned delegate using the generated Invoke method (see above),
+            // and pushes the return value (IntPtr) on top of the stack
+            ilgenerator2.Emit(OpCodes.Callvirt, delegateTypeInvokeMethod);
+
+            // pops off the return value from the stack,
+            // and returns it
+            ilgenerator2.Emit(OpCodes.Ret);
+
+            ilgenerator2.MarkLabel(exceptionLabel);
+
+            /// gets the constructor <see cref="ArgumentException(string, string)"/>
+            var argExCtor = typeof(ArgumentException).GetConstructor(new Type[] { typeof(string), typeof(string) })!;
+            // pushes the specified string onto the stack (the exception message)
+            ilgenerator2.Emit(OpCodes.Ldstr, $"expected array of length {arraySize}");
+            // pushes the specified string onto the stack (the parameter's name)
+            ilgenerator2.Emit(OpCodes.Ldstr, $"args");
+            // pops the arguments from the stack,
+            // creates a new object instance using the specified constructor,
+            // and pushes the result on top of the stack.
+            ilgenerator2.Emit(OpCodes.Newobj, argExCtor);
+
+            // pops the exception from the top of the stack,
+            // then throws the exception.
+            ilgenerator2.Emit(OpCodes.Throw);
+
+
             // create and store the type
             _cachedType = typeBuilder.CreateType()!;
 
@@ -390,6 +441,10 @@ namespace BetterNativeHook
             // Get the unmanaged method from the generated type,
             // and set the hook's detour method to the generated method's pointer via a property
             Detour = _cachedType.GetMethod(unmanagedMethodName)!.MethodHandle.GetFunctionPointer();
+
+            
+            var trampolineInvokerMethodInfo = _cachedType.GetMethod(trampolineInvokerMethodName)!;
+            _trampolineInvoker = (TrampolineInvoker)Delegate.CreateDelegate(typeof(TrampolineInvoker), trampolineInvokerMethodInfo);
 
             // The assembly is built and the hook can be attached
             IsBuilt = true;

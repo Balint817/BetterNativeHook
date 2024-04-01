@@ -19,7 +19,7 @@ namespace BetterNativeHook
         }
         public static string? Il2CppStringPtrToString(ParameterReference parameter)
         {
-            return Il2CppStringPtrToString(parameter.Value);
+            return Il2CppStringPtrToString(parameter.CurrentValue);
         }
 
 
