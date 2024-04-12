@@ -31,7 +31,7 @@ namespace BetterNativeHook
                         continue;                        
                     }
                     del.Invoke(returnValue, parameters);
-                    returnValue.SetOverrides();
+                    returnValue.SetOverride();
                 }
                 catch (Exception ex)
                 {

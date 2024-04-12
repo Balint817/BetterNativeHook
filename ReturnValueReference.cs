@@ -19,13 +19,13 @@ namespace BetterNativeHook
         /// </returns>
         public IntPtr InvokeTrampoline()
         {
-            if (OriginalValue is { } ptr)
+            if (OriginalValue.HasValue)
             {
-                return ptr;
+                return OriginalValue.Value;
             }
-            OriginalValue = ptr = _assembly.InvokeTrampoline(_parameters);
+            var ptr = OriginalValue = _assembly.InvokeTrampoline(_parameters);
             CurrentValue ??= OriginalValue;
-            return ptr;
+            return ptr.Value;
         }
         /// <summary>
         /// The original pointer of the return value.
@@ -53,7 +53,7 @@ namespace BetterNativeHook
         /// Leave on the default value of <c>null</c> to not modify.
         /// </summary>
         public IntPtr? Override { get; set; }
-        internal void SetOverrides()
+        internal void SetOverride()
         {
             if (!Override.HasValue)
             {
@@ -76,13 +76,13 @@ namespace BetterNativeHook
         /// </returns>
         public IntPtr GetValueOrInvokeTrampoline()
         {
-            if (Override is { } v1)
+            if (Override.HasValue)
             {
-                return v1;
+                return Override.Value;
             }
-            if (CurrentValue is { } v2)
+            if (CurrentValue.HasValue)
             {
-                return v2;
+                return CurrentValue.Value;
             }
             return InvokeTrampoline();
         }
@@ -96,13 +96,13 @@ namespace BetterNativeHook
         /// </returns>
         public IntPtr? GetValueWithoutInvoke()
         {
-            if (Override is { } v1)
+            if (Override.HasValue)
             {
-                return v1;
+                return Override.Value;
             }
-            if (CurrentValue is { } v2)
+            if (CurrentValue.HasValue)
             {
-                return v2;
+                return CurrentValue.Value;
             }
             return OriginalValue;
         }

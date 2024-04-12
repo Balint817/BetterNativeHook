@@ -88,6 +88,7 @@ namespace BetterNativeHook
             foreach (var hookInfo in hook.HookInfos)
             {
                 hookInfo.InvokeCallback(returnValue, parameters);
+                returnValue.SetOverride();
             }
             return returnValue.GetValueOrInvokeTrampoline();
         }
