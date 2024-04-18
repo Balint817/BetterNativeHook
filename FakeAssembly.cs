@@ -191,7 +191,7 @@ namespace BetterNativeHook
             
             // creates the assembly
             var asmName = new AssemblyName(assemblyName + assemblyIndex);
-            var asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+            var asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.RunAndCollect);
 
 
             // defines the namespace
