@@ -24,7 +24,7 @@ namespace BetterNativeHook
         private delegate IntPtr TrampolineInvoker(IntPtr[] args);
         internal IntPtr InvokeTrampoline(ReadOnlyCollection<ParameterReference> args)
         {
-            return _trampolineInvoker!(args.Select(x => x.CurrentValue).ToArray());
+            return _trampolineInvoker!(args.Select(x => x.GetOverrideOrValue() ?? IntPtr.Zero).ToArray());
         }
         internal IntPtr InvokeTrampolineDirect(IntPtr[] args)
         {

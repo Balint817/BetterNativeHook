@@ -62,7 +62,6 @@ namespace BetterNativeHook
         /// <para></para>
         /// It's sole caller should be the generated unmanaged method.
         /// </summary>
-        /// <param name="trampolineReturnValue">The value returned by the trampoline</param>
         /// <param name="fakeAssemblyIndex">The index of the FakeAssembly that generated the unmanaged caller</param>
         /// <param name="args">The arguments of the unmanaged function packed into an array</param>
         /// <returns>The pointer modified by the subscribed <see cref="MelonHookInfo"/> instances, or the original if left untouched</returns>
@@ -88,7 +87,6 @@ namespace BetterNativeHook
             foreach (var hookInfo in hook.HookInfos)
             {
                 hookInfo.InvokeCallback(returnValue, parameters);
-                returnValue.SetOverride();
             }
             return returnValue.GetValueOrInvokeTrampoline();
         }

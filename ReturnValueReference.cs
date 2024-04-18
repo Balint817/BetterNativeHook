@@ -6,10 +6,10 @@ namespace BetterNativeHook
 {
     [SecurityCritical]
     [PatchShield]
-    public sealed record class ReturnValueReference
+    public sealed class ReturnValueReference: ValueReference
     {
-        FakeAssembly _assembly;
-        ReadOnlyCollection<ParameterReference> _parameters;
+        readonly FakeAssembly _assembly;
+        readonly ReadOnlyCollection<ParameterReference> _parameters;
 
         /// <returns>
         /// <br/>
@@ -19,52 +19,19 @@ namespace BetterNativeHook
         /// </returns>
         public IntPtr InvokeTrampoline()
         {
-            if (OriginalValue.HasValue)
+            if (OriginalValue is { } ptr)
             {
-                return OriginalValue.Value;
+                return ptr;
             }
-            var ptr = OriginalValue = _assembly.InvokeTrampoline(_parameters);
+            OriginalValue = ptr = _assembly.InvokeTrampoline(_parameters);
             CurrentValue ??= OriginalValue;
-            return ptr.Value;
+            return ptr;
         }
-        /// <summary>
-        /// The original pointer of the return value.
-        /// This will be <see langword="null"/> until the trampoline is called.
-        /// </summary>
-        public IntPtr? OriginalValue { get; private set; }
-        /// <summary>
-        /// The modified pointer of the return value.
-        /// This will be <see langword="null"/> until the trampoline is called, or an <see cref="Override"/> is specified.
-        /// </summary>
-        public IntPtr? CurrentValue { get; private set; }
-        /// <summary>
-        /// The type of the return value (from it's MethodInfo)
-        /// </summary>
-        public readonly Type ReflectedType;
-        internal ReturnValueReference(Type reflectedType, FakeAssembly assembly, ReadOnlyCollection<ParameterReference> parameters)
+        internal ReturnValueReference(Type reflectedType, FakeAssembly assembly, ReadOnlyCollection<ParameterReference> parameters): base(reflectedType)
         {
             ReflectedType = reflectedType;
             _assembly = assembly;
             _parameters = parameters;
-        }
-        /// <summary>
-        /// Set to override the pointer. Modifications are applied once the event loses control.
-        /// <para></para>
-        /// Leave on the default value of <c>null</c> to not modify.
-        /// </summary>
-        public IntPtr? Override { get; set; }
-        internal void SetOverride()
-        {
-            if (!Override.HasValue)
-            {
-                return;
-            }
-            CurrentValue = Override.Value;
-            Override = null;
-        }
-        public override string ToString()
-        {
-            return $"{ReflectedType.Name ?? "<type>"} = {(!OriginalValue.HasValue ? "<NA>" : OriginalValue.Value.ToInt64())}" + (!Override.HasValue ? (!CurrentValue.HasValue ? "" : CurrentValue.Value.ToInt64()) : $"->{Override.Value.ToInt64()}");
         }
         /// <returns>
         /// <br/>
@@ -76,35 +43,15 @@ namespace BetterNativeHook
         /// </returns>
         public IntPtr GetValueOrInvokeTrampoline()
         {
-            if (Override.HasValue)
+            if (Override is { } v1)
             {
-                return Override.Value;
+                return v1;
             }
-            if (CurrentValue.HasValue)
+            if (CurrentValue is { } v2)
             {
-                return CurrentValue.Value;
+                return v2;
             }
             return InvokeTrampoline();
-        }
-        /// <returns>
-        /// <br/>
-        /// - <see cref="Override"/>, if not <see langword="null"/>
-        /// <br/>
-        /// - <see cref="CurrentValue"/>, if not <see langword="null"/>
-        /// <br/>
-        /// - <see cref="OriginalValue"/>, even if it is <see langword="null"/>
-        /// </returns>
-        public IntPtr? GetValueWithoutInvoke()
-        {
-            if (Override.HasValue)
-            {
-                return Override.Value;
-            }
-            if (CurrentValue.HasValue)
-            {
-                return CurrentValue.Value;
-            }
-            return OriginalValue;
         }
     }
 }
