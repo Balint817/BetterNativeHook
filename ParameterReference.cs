@@ -16,6 +16,11 @@ namespace BetterNativeHook
         /// The index of the parameter.
         /// </summary>
         public readonly int Index;
+
+        public IntPtr GetNotNull()
+        {
+            return GetOverrideOrValue() ?? throw new NullReferenceException();
+        }
         internal ParameterReference(int parameterIndex, string? parameterName, Type reflectedType, IntPtr initialValue = default): base(reflectedType)
         {
             Index = parameterIndex;

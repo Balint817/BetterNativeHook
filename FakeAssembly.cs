@@ -265,9 +265,6 @@ namespace BetterNativeHook
             // declare the variables
             var pointerArrayVariable = ilgenerator1.DeclareLocal(typeof(IntPtr[]));
             var result = ilgenerator1.DeclareLocal(typeof(IntPtr));
-            var exceptionVariable = ilgenerator1.DeclareLocal(typeof(TrampolineInvocationException));
-            // start a try-catch block
-            ilgenerator1.BeginExceptionBlock();
 
             // pushes the desired 'arraySize' on the stack
             ilgenerator1.Emit(OpCodes.Ldc_I4, arraySize);
@@ -301,50 +298,6 @@ namespace BetterNativeHook
             //pops the return value from the stack
             //and stores it in a local variable (result)
             ilgenerator1.Emit(OpCodes.Stloc, result);
-
-            // starts catch block (any Exception),
-            // and pushes the exception onto the stack
-            ilgenerator1.BeginCatchBlock(typeof(Exception));
-
-            // pushes the assembly's index onto the stack
-            ilgenerator1.Emit(OpCodes.Ldc_I4, assemblyIndex);
-            // pops the exception and the index from the stack,
-            /// instantiates an exception using <see cref="TrampolineInvocationException(Exception, int)"/>
-            // and pushes the instance onto the stack
-            ilgenerator1.Emit(OpCodes.Newobj, AccessTools.Constructor(typeof(TrampolineInvocationException), new Type[] { typeof(Exception), typeof(int) }));
-
-            // pops the created exception from the stack,
-            /// and calls <see cref="MelonLogger.Error(object)"/>
-            ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(MelonLogger), nameof(MelonLogger.Error), new Type[] { typeof(object) }));
-
-            ilgenerator1.EmitWriteLine("The program will now exit to prevent further issues or corruption");
-
-            // pushes an int value (wait time) onto the stack
-            ilgenerator1.Emit(OpCodes.Ldc_I4, 5000);
-            // pops the wait time from the stack,
-            /// and calls <see cref="Thread.Sleep(int)"/>
-            ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(Thread), nameof(Thread.Sleep), new Type[] { typeof(int) }));
-            // pushes a null reference onto the stack
-            ilgenerator1.Emit(OpCodes.Ldnull);
-            ilgenerator1.Emit(OpCodes.Castclass, typeof(string));
-            /// calls <see cref="Environment.FailFast(string?)"/>
-            ilgenerator1.Emit(OpCodes.Call, AccessTools.Method(typeof(Environment), nameof(Environment.FailFast), new Type[] { typeof(string) }));
-
-            // the code below is only here to make the compiler happy,
-            // since there is a FailFast immediately above which will halt the program anyway
-
-            // pushes 0 onto the stack
-            ilgenerator1.Emit(OpCodes.Ldc_I4, 0);
-            // pops the value off the stack,
-            // casts it to an IntPtr,
-            // then pushes it back onto the stack
-            ilgenerator1.Emit(OpCodes.Castclass, typeof(IntPtr));
-            // stores the value in the result,
-            // essentially returning (IntPtr)0
-            ilgenerator1.Emit(OpCodes.Stloc, result);
-
-            // ends the catch block
-            ilgenerator1.EndExceptionBlock();
 
             // pushes the result from the variable onto the stack
             ilgenerator1.Emit(OpCodes.Ldloc, result);
