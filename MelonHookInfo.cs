@@ -61,35 +61,17 @@ namespace BetterNativeHook
         {
             add
             {
-                var trace = MelonTrace.GetMelonFromStackTrace() ?? throw new InvalidOperationException("callbacks must be modified from a MelonMod instance");
-                if (trace.MelonInfo.Name != CallerMelon.MelonInfo.Name)
-                {
-                    throw new InvalidOperationException("only the MelonMod that created this instance may modify the callbacks");
-                }
                 if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value));
-                }
-                if (value.Method.Module.Assembly != CallerMelon.Assembly)
-                {
-                    throw new ArgumentException("you must implement your own callback (instance and method assembly mismatch)", nameof(value));
                 }
                 HookCallback += value;
             }
             remove
             {
-                var trace = MelonTrace.GetMelonFromStackTrace() ?? throw new InvalidOperationException("callbacks must be modified from a MelonMod instance");
-                if (trace.MelonInfo.Name != CallerMelon.MelonInfo.Name)
-                {
-                    throw new InvalidOperationException("only the MelonMod that created this instance may modify the callbacks");
-                }
                 if (value is null)
                 {
                     throw new ArgumentNullException(nameof(value));
-                }
-                if (value.Method.Module.Assembly != CallerMelon.Assembly)
-                {
-                    throw new ArgumentException("you must implement your own callback (instance and method assembly mismatch)", nameof(value));
                 }
                 HookCallback -= value;
             }

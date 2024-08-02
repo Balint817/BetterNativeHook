@@ -123,11 +123,7 @@ namespace BetterNativeHook
             {
                 throw new ArgumentNullException(nameof(hookInfo));
             }
-            var trace = MelonTrace.GetMelonFromStackTrace() ?? throw new InvalidOperationException($"{nameof(AttachHookInfo)} must be called from a MelonMod instance");
-            if (hookInfo.CallerMelon.Assembly != trace.Assembly)
-            {
-                throw new InvalidOperationException($"you cannot attach a {nameof(MelonHookInfo)} instance that belongs to a different mod");
-            }
+            var trace = MelonTrace.GetMelonFromStackTrace();
             MelonLogger.Msg($"[{MelonTrace.GetName(trace)}] requested AttachHookInfo for {TargetMethod.Name}<{string.Join(", ", TargetMethod.GenericTypes.Select(x => x.Name))}>({string.Join(", ", TargetMethod.Parameters.Select(x => x.ParameterType.Name))})");
             HookInfos.Add(hookInfo);
             SortHookInfos();
@@ -147,11 +143,7 @@ namespace BetterNativeHook
             {
                 throw new ArgumentNullException(nameof(hookInfo));
             }
-            var trace = MelonTrace.GetMelonFromStackTrace() ?? throw new InvalidOperationException($"{nameof(AttachHookInfo)} must be called from a MelonMod instance");
-            if (hookInfo.CallerMelon.Assembly != trace.Assembly)
-            {
-                throw new InvalidOperationException($"you cannot detach a {nameof(MelonHookInfo)} instance that belongs to a different mod");
-            }
+            var trace = MelonTrace.GetMelonFromStackTrace();
             MelonLogger.Msg($"[{MelonTrace.GetName(trace)}] requested DetachHookInfo for {TargetMethod.Name}<{string.Join(", ", TargetMethod.GenericTypes.Select(x => x.Name))}>({string.Join(", ", TargetMethod.Parameters.Select(x => x.ParameterType.Name))})");
             HookInfos.Remove(hookInfo);
             SortHookInfos();
